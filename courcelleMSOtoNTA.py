@@ -5,13 +5,49 @@ from StringCase.utils import gen_courcelle_alphabet
 
 class courcelle_MSO_to_NTA_Parser:
     def __init__(self, alphabet, twd, k):
-        self.alphabet = alphabet
-        self.base_alphabet = gen_courcelle_alphabet(treewidth=twd, k=k)
+        self.base_alphabet = alphabet
+        self.alphabet = gen_courcelle_alphabet(twd, k)
         self.k = k
         self.twd = twd
         self.variable_counter = 1
         self.bound_variables = {}
         self.variable_types = {}
+
+    def _require_bound(self, var_name):
+        if var_name not in self.bound_variables:
+            raise ValueError(f"Unbound variable: {var_name}")
+        return self.bound_variables[var_name]
+
+    def _project_last_coordinate(self, automaton):
+        projected = automaton.project_courcelle(self.base_alphabet, self.twd, self.k, verbose=False)
+        self.k -= 1
+        self.alphabet = projected.input_symbols
+        return projected
+
+    def _alphabet_width(self, input_symbols):
+        for sym in input_symbols.keys():
+            if isinstance(sym, tuple):
+                return len(sym) - 1
+        return 0
+
+    def _project_to_width(self, automaton, target_width):
+        current = self._alphabet_width(automaton.input_symbols)
+        while current > target_width:
+            automaton = automaton.project_courcelle(
+                self.base_alphabet, self.twd, current, verbose=False
+            )
+            current -= 1
+        return automaton
+
+    def _align_automata(self, left_automaton, right_automaton):
+        left_w = self._alphabet_width(left_automaton.input_symbols)
+        right_w = self._alphabet_width(right_automaton.input_symbols)
+        target = min(left_w, right_w)
+        left_automaton = self._project_to_width(left_automaton, target)
+        right_automaton = self._project_to_width(right_automaton, target)
+        self.k = target
+        self.alphabet = left_automaton.input_symbols
+        return left_automaton, right_automaton
 
     def _split_at_comma(self, s):
         depth = 0
@@ -60,22 +96,26 @@ class courcelle_MSO_to_NTA_Parser:
                 self.variable_counter += 1
                 if var_type == "first":
                     return {
-                    'type': 'not',
-                    'subformula': {
-                        'type': "forall_first",
-                        'var': var_name,
-                        'var_type': var_type,
-                        'subformula': {'type' : 'not', 'subformula': self.build_ast(subformula)}
+                            'type': 'not',
+                            'subformula': {
+                                'type': 'exists_second',
+                                'var': var_name,
+                                'var_type': 'second',
+                                'subformula': {
+                                    'type': 'and',
+                                    'left': {'type': 'singleton', 'var': var_name},
+                                    'right': {'type': 'not', 'subformula': self.build_ast(subformula)}
+                                }
+                            }
                         }
-                    }
-                    
+                                            
                 if var_type == "second":    
                     return {
                     'type': 'not',
                     'subformula': {
                         'type': exists_type,
                         'var': var_name,
-                        'var_type': var_type,
+                        'var_type': "second",
                         'subformula': {'type' : 'not', 'subformula': self.build_ast(subformula)}
                         }
                     }
@@ -164,17 +204,33 @@ class courcelle_MSO_to_NTA_Parser:
         # Graph predicates
         elif formula.startswith('vertices(') and formula.endswith(')'):
                 inner = formula[9:-1].strip()
-                set_var = self._split_at_comma(inner)
+                set_var = inner
                 return {
                     'type': 'vertices',
                     'set_var': set_var
                 }
         elif formula.startswith('edges(') and formula.endswith(')'):
                 inner = formula[6:-1].strip()
-                set_var = self._split_at_comma(inner)
+                set_var = inner
                 return {
                     'type': 'edges',
                     'set_var': set_var
+                }
+        elif formula.startswith('biVert(') and formula.endswith(')'):
+                inner = formula[7:-1].strip()
+                set_var1, set_var2 = self._split_at_comma(inner)
+                return {
+                    'type': 'biVert',
+                    'set_var1': set_var1,
+                    'set_var2': set_var2
+                }
+        elif formula.startswith('bipartite(') and formula.endswith(')'):
+                inner = formula[10:-1].strip()
+                set_var1, set_var2 = self._split_at_comma(inner)
+                return {
+                    'type': 'bipartite',
+                    'set_var1': set_var1,
+                    'set_var2': set_var2
                 }
         raise ValueError(f"Unrecognized formula: {formula}")
     
@@ -182,39 +238,36 @@ class courcelle_MSO_to_NTA_Parser:
         print(f"Building automaton for AST node: {ast}")
         if ast['type'] in ('exists', 'exists_first'):
             var = ast['var']
-            var_idx = self.bound_variables[var]
+            var_idx = self._require_bound(var)
             sub_automaton = self.build_automaton(ast['subformula'])
+            self.alphabet = sub_automaton.input_symbols
+
+            if var_idx != self.k:
+                raise ValueError(
+                    f"Projection order mismatch: variable {var} has index {var_idx}, active width is {self.k}"
+                )
 
             singleton = singl(var_idx, self.alphabet, self.twd, self.k)
 
             combined = singleton.cut(sub_automaton)
-
-            automaton = combined.project_courcelle(self.alphabet, self.twd, var_idx, verbose=False)
-
-            self.k = self.k - 1
-            return automaton
+            return self._project_last_coordinate(combined)
         
         elif ast['type'] == 'exists_second':
             var = ast['var']
-            var_idx = self.bound_variables[var]
+            var_idx = self._require_bound(var)
             sub_automaton = self.build_automaton(ast['subformula'])
-            print("Sub Automaton:", sub_automaton.input_symbols)
-            automaton = sub_automaton.project_courcelle(self.alphabet, self.twd, var_idx, verbose=False)
-            self.k = self.k - 1
-            return automaton
+            self.alphabet = sub_automaton.input_symbols
+
+            if var_idx != self.k:
+                raise ValueError(
+                    f"Projection order mismatch: variable {var} has index {var_idx}, active width is {self.k}"
+                )
+            return self._project_last_coordinate(sub_automaton)
         
-        elif ast['type'] == 'forall_first':
+        elif ast['type'] == 'singleton':
             var = ast['var']
-            var_idx = self.bound_variables[var]
-            sub_automaton = self.build_automaton(ast['subformula'])
-
-            singleton = singl(var_idx, self.alphabet, self.twd, self.k)
-            combined = singleton.complement().union(sub_automaton)
-
-            automaton = combined.project_courcelle(self.alphabet, self.twd, var_idx, verbose=False)
-            self.k = self.k - 1
-            return automaton
-
+            var_idx = self._require_bound(var)
+            return singl(var_idx, self.alphabet, self.twd, self.k)
 
         elif ast['type'] == 'not':
             sub_automaton = self.build_automaton(ast['subformula'])
@@ -224,55 +277,68 @@ class courcelle_MSO_to_NTA_Parser:
         elif ast['type'] == 'and':
             left_automaton = self.build_automaton(ast['left'])
             right_automaton = self.build_automaton(ast['right'])
+            left_automaton, right_automaton = self._align_automata(left_automaton, right_automaton)
             return left_automaton.cut(right_automaton)
-        
+
         elif ast['type'] == 'or':
             left_automaton = self.build_automaton(ast['left'])
             right_automaton = self.build_automaton(ast['right'])
+            left_automaton, right_automaton = self._align_automata(left_automaton, right_automaton)
             return left_automaton.union(right_automaton)
-        
+
         elif ast['type'] == 'implies':
             left_automaton = self.build_automaton(ast['left'])
             right_automaton = self.build_automaton(ast['right'])
+            left_automaton, right_automaton = self._align_automata(left_automaton, right_automaton)
             left_complement = left_automaton.complement()
             return left_complement.union(right_automaton)
 
         elif ast['type'] == 'in1':
             set_var = ast['set_var']
             elem_var = ast['elem_var']
-            set_idx = self.bound_variables[set_var]
-            elem_idx = self.bound_variables[elem_var]
+            set_idx = self._require_bound(set_var)
+            elem_idx = self._require_bound(elem_var)
             return in1(set_idx, elem_idx, self.alphabet, self.twd, self.k)
         
         elif ast['type'] == 'in2':
             set_var = ast['set_var']
             elem_var = ast['elem_var']
-            set_idx = self.bound_variables[set_var]
-            elem_idx = self.bound_variables[elem_var]
+            set_idx = self._require_bound(set_var)
+            elem_idx = self._require_bound(elem_var)
             return in2(set_idx, elem_idx, self.alphabet, self.twd, self.k)
         
         elif ast['type'] == 'subset':
             set1_var = ast['set1_var']
             set2_var = ast['set2_var']
-            set1_idx = self.bound_variables[set1_var]
-            set2_idx = self.bound_variables[set2_var]
+            set1_idx = self._require_bound(set1_var)
+            set2_idx = self._require_bound(set2_var)
             return subset(set1_idx, set2_idx, self.alphabet, self.twd, self.k)
         
         elif ast['type'] == 'vertices':
             set_var = ast['set_var']
-            set_idx = self.bound_variables[set_var]
+            set_idx = self._require_bound(set_var)
             return vertices(set_idx, self.alphabet, self.twd, self.k)
         
         elif ast['type'] == 'edges':
             set_var = ast['set_var']
-            set_idx = self.bound_variables[set_var]
+            set_idx = self._require_bound(set_var)
             return edges(set_idx, self.alphabet, self.twd, self.k)
-        
-
+        elif ast['type'] == 'biVert':
+            set_var1 = ast['set_var1']
+            set_var2 = ast['set_var2']
+            set_idx1 = self._require_bound(set_var1)
+            set_idx2 = self._require_bound(set_var2)
+            return vert_partition(set_idx1, set_idx2, self.alphabet, self.twd, self.k)
+        elif ast['type'] == 'bipartite':
+            set_var1 = ast['set_var1']
+            set_var2 = ast['set_var2']
+            set_idx1 = self._require_bound(set_var1)
+            set_idx2 = self._require_bound(set_var2)
+            return bipartite(set_idx1, set_idx2, self.alphabet, self.twd, self.k)
 if __name__ == "__main__":
    
     treewidth = 2
-    k = 4
+    k = 2
     alphabet = gen_courcelle_alphabet(treewidth, 0)
 
     print(alphabet)
@@ -315,25 +381,53 @@ if __name__ == "__main__":
     b18 = Node("miv_c", 17, [b17])
     b19 = Node("miv_a", 18, [b18])
 
+    c1 = Node("ab", 1, [])
+    c2 = Node("bc", 2, [])
+    c3 = Node("//", 3, [c1, c2])
+    c4 = Node("miv_b", 4, [c3])
+    c5 = Node("cb", 5, [])
+    c6 = Node("//", 6, [c4, c5])
+    c7 = Node("miv_c", 7, [c6])
+    c8 = Node("bc", 8, [])
+    c9 = Node("//", 9, [c7, c8])
+    c10 = Node("miv_b", 10, [c9])
+    c11 = Node("cb", 11, [])
+    c12 = Node("//", 12, [c10, c11])
+    c13 = Node("miv_c", 13, [c12])
+    c14 = Node("ba", 14, [])
+    c15 = Node("//", 15, [c13, c14])
+    c16 = Node("miv_a", 16, [c15])
+    c17 = Node("miv_b", 17, [c16])
+
     tree_triangle = RootedTree(a14, [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14])
     tree_quad = RootedTree(b19, [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19])
+    tree_toolbox = RootedTree(c17, [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17])
+
 
     parser = courcelle_MSO_to_NTA_Parser(alphabet, treewidth, k)
     #formula = "∃X1(∃X2(∃X3(and(in1(X3, X1),in2(X3, X2)))))"
 
-    formula = "∃X(∃Y(∀u(∀v(->(and(in1(Y, u),in2(Y, v) ),not(or(and(subset(u,X),subset(v,X)),and(not(subset(u,X)),not(subset(v,X))))))))))"
+    #formula = "∃X(∀y(->(edges(y),∀u(∀v(->(and(in1(y,u),in2(y,v)),not(<->(subset(u,X),subset(v,X)))))))))"
+
+    formula = "∃X(∃Y(bipartite(X,Y)))"
 
     #formula = "∃a(∃b(∃c(∃X(∃Y(∃Z(and(   and(in1(X, a), in2(X, b) ),  " \
     #"                                and(and(in1(Y, a), in2(Y, c))," \
     #"                                    and(in1(Z, b), in2(Z, c))))))))))"
 
     ast = parser.build_ast(formula)
+    #print("Constructed AST: ", ast)
 
     automaton = parser.build_automaton(ast)
 
     #print("automaton transitions: ", automaton.transitions)
 
-    print(automaton.input_symbols)
+    #print(automaton.input_symbols)
 
-    print("Quad Graph, triangle exsists:", automaton.nta_run(tree_quad))
-    print("Triangle Graph, traiangle exists:", automaton.nta_run(tree_triangle))
+    #print("Quad Graph, triangle exsists:", automaton.nta_run(tree_quad))
+    #print("Triangle Graph, traiangle exists:", automaton.nta_run(tree_triangle))
+
+    #bipartite_aut = bipartite(1, alphabet, treewidth, k)
+    print("Quad Graph, bipartite:", automaton.nta_run(tree_quad))
+    print("Triangle Graph, bipartite:", automaton.nta_run(tree_triangle))
+    print("Toolbox Graph, bipartite:", automaton.nta_run(tree_toolbox))

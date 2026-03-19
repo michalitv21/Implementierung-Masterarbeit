@@ -535,6 +535,15 @@ class TreeAutomaton:
 
     def cut(self, other):
         print("Constructing cut automaton...")
+        self_keys = set(self.input_symbols.keys())
+        other_keys = set(other.input_symbols.keys())
+        if self_keys != other_keys:
+            only_self = sorted(self_keys - other_keys, key=str)[:8]
+            only_other = sorted(other_keys - self_keys, key=str)[:8]
+            raise ValueError(
+                f"Cannot cut automata with different input symbol sets. Only in left: {only_self}; only in right: {only_other}"
+            )
+
         new_states = {(s1, s2) for s1 in self.states for s2 in other.states}
         #print(new_states)
         new_final_states = {(s1, s2) for s1 in self.states for s2 in other.states if s1 in self.final_states and s2 in other.final_states}
@@ -715,6 +724,8 @@ class TreeAutomaton:
                     new_transitions[new_char] = collected_states[0]
                     if verbose:
                         print(f"    → Result (deterministic): {collected_states[0]}")
+                else:
+                    new_transitions[new_char] = []
             
             elif arity == 1:
                 # Unary transitions
@@ -910,10 +921,10 @@ class TreeAutomaton:
                         new_transitions[new_char][state] = combined_results[0]
                         if verbose:
                             print(f"      δ({state}) = {combined_results[0]}")
+                    else:
+                        new_transitions[new_char][state] = []
             
             elif arity == 2:
-                new_transitions[new_char] = self.transitions[new_char]
-                """
                 # Binary transitions
                 new_transitions[new_char] = {}
                 if verbose:
@@ -941,9 +952,10 @@ class TreeAutomaton:
                             transition_count += 1
                             if verbose and transition_count <= 5:
                                 print(f"      δ({state1}, {state2}) = {combined_results[0]}")
+                        else:
+                            new_transitions[new_char][state1][state2] = []
                 if verbose and transition_count > 5:
                     print(f"      ... and {transition_count - 5} more transitions")
-        """
         if verbose:
             print("\n" + "="*70)
             print("PROJECTION COMPLETE")

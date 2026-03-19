@@ -93,6 +93,18 @@ def gen_courcelle_alphabet(treewidth, k):
 
     return ranked_alphabet
 
+def powerset(frozenset_input):
+    power_set = [[]]
+
+    for element in frozenset_input:
+        new_subsets = []
+        for subset in power_set:
+            new_subset = subset + [element]
+            new_subsets.append(new_subset)
+        power_set.extend(new_subsets)
+
+    return [frozenset(subset) for subset in power_set]
+
 
 if __name__ == "__main__":
     print(gen_courcelle_alphabet(2, 2))
