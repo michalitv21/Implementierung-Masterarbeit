@@ -113,22 +113,22 @@ def permutationToTreeDecomposition(graph:Graph, vertexList):
             if vertexList[j] in bags[vertexList[i]].vertices:
                 resTree.add_edge(bags[vertexList[i]], bags[vertexList[j]])
                 break
-    print("Edges of TD: " + str(resTree.F))
+    #print("Edges of TD: " + str(resTree.F))
     return resTree
 
 def tree_to_rooted_tree(tree:Tree, root_bag:Bag):
-    print("Building rooted tree with root bag: " + str(root_bag))
-    print("Tree: " + str(tree))
+    #print("Building rooted tree with root bag: " + str(root_bag))
+    #print("Tree: " + str(tree))
     node_dict = {}
     counter = 1
     
     # Create nodes for all bags
     for bag in tree.I.values():
-        print("Bag: " + str(bag))
+        #print("Bag: " + str(bag))
         node_dict[bag] = Node(bag, counter, [])
         counter += 1
     
-    print("Node dict: " + str(node_dict))
+    #print("Node dict: " + str(node_dict))
     
     # Build tree structure using BFS from root (avoid cycles)
     visited = set([root_bag])
@@ -136,24 +136,24 @@ def tree_to_rooted_tree(tree:Tree, root_bag:Bag):
     node_list = [root_bag]
     while len(worklist) > 0:
         current_bag = worklist.pop(0)
-        print("Processing bag: " + str(current_bag))
+        #print("Processing bag: " + str(current_bag))
         
         for edge in tree.F:
             if current_bag in edge:
                 other_bag = (edge.copy() - set([current_bag])).pop()
-                print("Edge: " + str(edge) + " | Other bag: " + str(other_bag))
+                #print("Edge: " + str(edge) + " | Other bag: " + str(other_bag))
                 
                 if other_bag not in visited:
                     visited.add(other_bag)
                     node_dict[current_bag].add_child(node_dict[other_bag])
-                    print("Added edge from " + str(current_bag.label) + " to " + str(other_bag.label))
+                    #print("Added edge from " + str(current_bag.label) + " to " + str(other_bag.label))
                     worklist.append(other_bag)
                     node_list.append(other_bag)
     
     root_node = node_dict[root_bag]
-    print("Root node: " + str(root_node.label))
-    print("Nodes: " + str(node_dict))
-    print("Node list: " + str(node_list))
+    #print("Root node: " + str(root_node.label))
+    #print("Nodes: " + str(node_dict))
+    #print("Node list: " + str(node_list))
     return RootedTree(root_node, [node_dict[n] for n in node_list[::-1]])
 
 
@@ -275,7 +275,7 @@ def U_all(vert_set, tree:RootedTree, graph:Graph):
 
 def compute_all_labels(treewidth):
     pass
-
+"""
 def minimize_tree_decomposition(tree:RootedTree):
     # if a child bag is a subset of its parent bag, child bag (branch) is removed
     tree_nodes = tree.nodes.copy()
@@ -293,6 +293,53 @@ def minimize_tree_decomposition(tree:RootedTree):
                 worklist.append(child)
     print("Tree nodes after minimization: " + str([node.label for node in tree_nodes]))
     return RootedTree(tree_root, tree_nodes)
+"""
+def minimize_tree_decomposition(tree: RootedTree):
+    # Remove child bags that are subsets of their parent by bypassing them.
+    # This preserves decomposition validity and keeps the structure a rooted tree.
+
+    def clone_subtree(node):
+        cloned = Node(node.label, node.id, [])
+        for child in node.children:
+            cloned.children.append(clone_subtree(child))
+        return cloned
+
+    def minimize_subtree(node):
+        # First minimize descendants
+        for child in node.children:
+            minimize_subtree(child)
+
+        # Then contract all subset-children under this node.
+        # Repeat because promoted grandchildren may also be subsets of node.
+        changed = True
+        while changed:
+            changed = False
+            new_children = []
+            for child in node.children:
+                if child.label.vertices.issubset(node.label.vertices):
+                    # Bypass child: attach its children directly to node
+                    new_children.extend(child.children)
+                    changed = True
+                else:
+                    new_children.append(child)
+            node.children = new_children
+
+    def collect_postorder(node, out):
+        for child in node.children:
+            collect_postorder(child, out)
+        out.append(node)  # root ends up last, matching your current convention
+
+    #print("Tree nodes before minimization: " + str([n.label for n in tree.nodes]))
+
+    # Work on a cloned rooted tree to avoid accidental side effects
+    minimized_root = clone_subtree(tree.root)
+    minimize_subtree(minimized_root)
+
+    minimized_nodes = []
+    collect_postorder(minimized_root, minimized_nodes)
+
+    #print("Tree nodes after minimization: " + str([n.label for n in minimized_nodes]))
+    return RootedTree(minimized_root, minimized_nodes)
 
 def make_rich_tree_decomposition(tree:RootedTree, graph:Graph):
     # Given a tree decomposition with its graph, make it rich by going
@@ -300,16 +347,16 @@ def make_rich_tree_decomposition(tree:RootedTree, graph:Graph):
     # A dict with a mapping from Nodes to the set of edges in their bag is returned
     graph_edges = graph.edges.copy()
     graph_edges_available = graph.edges.copy()
-    print("Graph edges: " + str(graph_edges))
+    #print("Graph edges: " + str(graph_edges))
     edge_mapping = {}
     worklist = [tree.nodes[-1]] # start with root node
     while len(worklist) > 0:
         node = worklist.pop(0)
         edge_mapping[node] = set()
         for e in graph_edges:
-            print("Checking edge " + str(e) + " for bag " + str(node.label.vertices))
+            #print("Checking edge " + str(e) + " for bag " + str(node.label.vertices))
             if e.issubset(node.label.vertices) and e in graph_edges_available:
-                print("Adding edge " + str(e) + " to bag " + str(node.label.vertices))
+                #print("Adding edge " + str(e) + " to bag " + str(node.label.vertices))
                 edge_mapping[node].add(frozenset(e))
                 graph_edges_available.remove(e)
         for child in node.children:
