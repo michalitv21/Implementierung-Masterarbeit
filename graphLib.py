@@ -1,4 +1,4 @@
-from treeDecomp import Bag, BinaryTree, RootedTree, Tree, Node, TreeDecomposition
+from treeDecomp import Bag, BinaryTree, RichTreeDecomposition, RootedTree, Tree, Node, TreeDecomposition
 
 class Vertex:
     def __init__(self, label):
@@ -133,7 +133,7 @@ def tree_to_rooted_tree(tree:Tree, root_bag:Bag):
     # Build tree structure using BFS from root (avoid cycles)
     visited = set([root_bag])
     worklist = [root_bag]
-    
+    node_list = [root_bag]
     while len(worklist) > 0:
         current_bag = worklist.pop(0)
         print("Processing bag: " + str(current_bag))
@@ -148,12 +148,13 @@ def tree_to_rooted_tree(tree:Tree, root_bag:Bag):
                     node_dict[current_bag].add_child(node_dict[other_bag])
                     print("Added edge from " + str(current_bag.label) + " to " + str(other_bag.label))
                     worklist.append(other_bag)
+                    node_list.append(other_bag)
     
     root_node = node_dict[root_bag]
     print("Root node: " + str(root_node.label))
     print("Nodes: " + str(node_dict))
-
-    return RootedTree(root_node, list(node_dict.values()))
+    print("Node list: " + str(node_list))
+    return RootedTree(root_node, [node_dict[n] for n in node_list[::-1]])
 
 
 def make_binary_tree(rooted_tree:RootedTree):
@@ -275,15 +276,57 @@ def U_all(vert_set, tree:RootedTree, graph:Graph):
 def compute_all_labels(treewidth):
     pass
 
+def minimize_tree_decomposition(tree:RootedTree):
+    # if a child bag is a subset of its parent bag, child bag (branch) is removed
+    tree_nodes = tree.nodes.copy()
+    print("Tree nodes before minimization: " + str([node.label for node in tree_nodes]))
+    tree_root = Node(tree.root.label, tree.root.id, tree.root.children.copy())
+    worklist = [tree_nodes[-1]] # start with root node
+    while len(worklist) > 0:
+        current_node = worklist.pop(0)
+        for child in current_node.children:
+            if child.label.vertices.issubset(current_node.label.vertices):
+                # Remove child from tree
+                current_node.children.remove(child)
+                tree_nodes.remove(child)
+            else:
+                worklist.append(child)
+    print("Tree nodes after minimization: " + str([node.label for node in tree_nodes]))
+    return RootedTree(tree_root, tree_nodes)
+
+def make_rich_tree_decomposition(tree:RootedTree, graph:Graph):
+    # Given a tree decomposition with its graph, make it rich by going
+    # top down and introducing every edge (unique) in the bags it first appears in the tree decomposition
+    # A dict with a mapping from Nodes to the set of edges in their bag is returned
+    graph_edges = graph.edges.copy()
+    graph_edges_available = graph.edges.copy()
+    print("Graph edges: " + str(graph_edges))
+    edge_mapping = {}
+    worklist = [tree.nodes[-1]] # start with root node
+    while len(worklist) > 0:
+        node = worklist.pop(0)
+        edge_mapping[node] = set()
+        for e in graph_edges:
+            print("Checking edge " + str(e) + " for bag " + str(node.label.vertices))
+            if e.issubset(node.label.vertices) and e in graph_edges_available:
+                print("Adding edge " + str(e) + " to bag " + str(node.label.vertices))
+                edge_mapping[node].add(frozenset(e))
+                graph_edges_available.remove(e)
+        for child in node.children:
+            worklist.append(child)
+
+    return edge_mapping
+
+
 if __name__ == "__main__":
-    a = Vertex("a")
-    b = Vertex("b")
-    c = Vertex("c")
-    d = Vertex("d")
-    e = Vertex("e")
-    f = Vertex("f")
-    g = Vertex("g")
-    h = Vertex("h")
+    a = Vertex("1")
+    b = Vertex("2")
+    c = Vertex("3")
+    d = Vertex("4")
+    e = Vertex("5")
+    f = Vertex("6")
+    g = Vertex("7")
+    h = Vertex("8")
 
     #Paper1
     graph = Graph([a,b,c,d,e,f,g,h],[{a,b},{a,c},{b,f},{f,g},{g,h},{b,e},{b,c},{c,d},{d,e},{e,h},{c,e},{e,g},{b,g}])
@@ -369,21 +412,34 @@ if __name__ == "__main__":
     rooted = tree_to_rooted_tree(tree, tree.I[b])
     print("#Nodes in rooted tree: " + str(len(rooted.nodes)))
     print("Rooted tree: " + str(rooted))
-    binary_tree = make_binary_tree(rooted)
-    print("#Nodes in binary tree: " + str(len(binary_tree.nodes)))
-    print("Binary tree: " + str(binary_tree))
-    print("Tree Structure Type: " + str(type(binary_tree)))
-    tree_width = get_tree_width(binary_tree)
-    print("Tree width: " + str(tree_width))
-    bagmapping = extended_bags(binary_tree)
-    print("Bag mapping: " + str(bagmapping))
-    labels = label_bags(binary_tree, graph)
-    print([str(bagmapping[k]) + " : " + str(v) for k,v in labels.items()])
-    u = U(2, {a, d}, binary_tree, graph)
-    print("U(2, {a, d}): " + str(u))
-    u_all = U_all({a, d}, binary_tree, graph)
-    print("U_all({a, d}): " + str(u_all))
-    for i in u_all:
-        for j in list(i):
-            print(extended_bags(binary_tree)[j])
-        print("----") 
+    minimized_tree = minimize_tree_decomposition(rooted)
+    print("Minimized rooted tree: " + str(minimized_tree))
+    rich_tree_mapping = make_rich_tree_decomposition(minimized_tree, graph)
+    rich_tree = RichTreeDecomposition(minimized_tree, rich_tree_mapping)
+    
+    rich_tree.print_tree()
+    rich_tree.print_mapping()
+    rich_tree.print_treeWidth()
+    rich_tree.print_sources()
+    print("Sources dict: " + str(rich_tree.create_sources_dict()))
+    rich_tree.create_FHR_term()
+
+
+    #binary_tree = make_binary_tree(rooted)
+    #print("#Nodes in binary tree: " + str(len(binary_tree.nodes)))
+    #print("Binary tree: " + str(binary_tree))
+    #print("Tree Structure Type: " + str(type(binary_tree)))
+    #tree_width = get_tree_width(binary_tree)
+    #print("Tree width: " + str(tree_width))
+    #bagmapping = extended_bags(binary_tree)
+    #print("Bag mapping: " + str(bagmapping))
+    #labels = label_bags(binary_tree, graph)
+    #print([str(bagmapping[k]) + " : " + str(v) for k,v in labels.items()])
+    #u = U(2, {a, d}, binary_tree, graph)
+    #print("U(2, {a, d}): " + str(u))
+    #u_all = U_all({a, d}, binary_tree, graph)
+    #print("U_all({a, d}): " + str(u_all))
+    #for i in u_all:
+    #   for j in list(i):
+    #       print(extended_bags(binary_tree)[j])
+    #   print("----") 
