@@ -296,7 +296,6 @@ def minimize_tree_decomposition(tree:RootedTree):
 """
 def minimize_tree_decomposition(tree: RootedTree):
     # Remove child bags that are subsets of their parent by bypassing them.
-    # This preserves decomposition validity and keeps the structure a rooted tree.
 
     def clone_subtree(node):
         cloned = Node(node.label, node.id, [])

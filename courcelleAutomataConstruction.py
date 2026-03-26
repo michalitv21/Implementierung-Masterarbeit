@@ -244,7 +244,7 @@ def bipartite(i, j, alphabet, twd, k):
             for s2 in subsets:
                 tuples.append((s1, s2, b))
     #print("Tuples: ", set(tuples))
-
+    errstate = (frozenset(symbols_twd), frozenset(symbols_twd), True)
     return TreeAutomaton(
         states=set(tuples),
         input_symbols=input_symbols,
@@ -252,12 +252,12 @@ def bipartite(i, j, alphabet, twd, k):
         transitions={
             char: (frozenset(char[0][0]), frozenset(char[0][1]), False) if char[0][0] < char[0][1] and char[i] == 0 and char[j] == 0 else 
                   (frozenset(char[0][1]), frozenset(char[0][0]), False) if char[i] == 0 and char[j] == 0 else
-                  (frozenset(symbols_twd), frozenset(symbols_twd), True)
+                  errstate
             for char in input_symbols.keys() if input_symbols[char] == 0
         } | {
             char: {
                 tup1: {
-                    tup2: (tup1[0].union(tup2[1]), tup1[1].union(tup2[0]), tup1[2] or tup2[2]) if tup1[0] == tup2[1] or tup1[1] == tup2[0] else 
+                    tup2: (tup1[0].union(tup2[1]), tup1[1].union(tup2[0]), tup1[2] or tup2[2]) if tup1[0] == tup2[1] or tup1[1] == tup2[0] and not(tup1 == 1 and tup2 == 1) else 
                     (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]), tup1[2] or tup2[2]) 
                     for tup2 in tuples                }               for tup1 in tuples
             } for char in input_symbols.keys() if input_symbols[char] == 2

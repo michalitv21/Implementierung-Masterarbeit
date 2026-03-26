@@ -105,7 +105,8 @@ if __name__ == "__main__":
         tree = permutationToTreeDecomposition(graph_copy, minimal_degree_ordering(graph_copy))
         treeDecomp = TreeDecomposition(tree.I, tree)
         rooted = tree_to_rooted_tree(tree, tree.I[graph.vertices[0]])
-        minimized_tree = minimize_tree_decomposition(rooted)
+        minimized_tree = rooted
+        #minimized_tree = minimize_tree_decomposition(rooted)
         rich_tree_mapping = make_rich_tree_decomposition(minimized_tree, graph)
         rich_tree = RichTreeDecomposition(minimized_tree, rich_tree_mapping)
         FHR_tree = rich_tree.create_FHR_term()
@@ -122,7 +123,8 @@ if __name__ == "__main__":
         tree = permutationToTreeDecomposition(graph_copy, minimal_degree_ordering(graph_copy))
         treeDecomp = TreeDecomposition(tree.I, tree)
         rooted = tree_to_rooted_tree(tree, tree.I[graph.vertices[0]])
-        minimized_tree = minimize_tree_decomposition(rooted)
+        minimized_tree = rooted
+        #minimized_tree = minimize_tree_decomposition(rooted)
         rich_tree_mapping = make_rich_tree_decomposition(minimized_tree, graph)
         rich_tree = RichTreeDecomposition(minimized_tree, rich_tree_mapping)
         FHR_tree = rich_tree.create_FHR_term()
