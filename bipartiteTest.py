@@ -83,19 +83,32 @@ if __name__ == "__main__":
                           {v2, v3}, 
                           {v1, v3}]))
 
+    
+    
+    #formula = "∃X(∃Y(and(and(and(vertices(X),singleton(X)),vertices(Y)),subset(X,Y))))"
+    #formula = "∃X(∃Y(bipartite(X,Y)))"
+    #formula = "∃X(∃Y(and(and(biVert(X,Y),closure(X)),closure(Y))))"
+    formula = "∃X(∃Y(and(biVert(X,Y),and(and(sub(X),noEdgeInv(X)),and(sub(Y),noEdgeInv(Y))))))"
+    #formula = "∃X(and(sub(X),noEdgeInv(X)))"
+
     treewidth = 2
-    k = 2
+    #k = 2
+    k = formula.count("∃") + formula.count("∀")
+    print("k:", k)
     alphabet = gen_courcelle_alphabet(treewidth, k)
 
     parser = courcelle_MSO_to_NTA_Parser(alphabet, treewidth, k)
 
-    formula = "∃X(∃Y(bipartite(X,Y)))"
+
+    
 
     ast = parser.build_ast(formula)
     automaton = parser.build_automaton(ast)
 
     res1 = []
     res2 = []
+
+    print(automaton.states)
 
     for i, graph in enumerate(graphs1):
         #print(f"Graph {i+1}:")

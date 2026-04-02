@@ -177,6 +177,13 @@ class courcelle_MSO_to_NTA_Parser:
                     }
                 }
         # Set operations
+        elif formula.startswith('singleton(') and formula.endswith(')'):
+                inner = formula[10:-1].strip()
+                set_var = inner
+                return {
+                    'type': 'singleton',
+                    'var': set_var
+                }
         elif formula.startswith('in1(') and formula.endswith(')'):
                 inner = formula[4:-1].strip()
                 set_var, elem_var = self._split_at_comma(inner)
@@ -224,6 +231,13 @@ class courcelle_MSO_to_NTA_Parser:
                     'set_var1': set_var1,
                     'set_var2': set_var2
                 }
+        elif formula.startswith('closure(') and formula.endswith(')'):
+                inner = formula[8:-1].strip()
+                set_var = inner
+                return {
+                    'type': 'closure',
+                    'set_var': set_var
+                }
         elif formula.startswith('bipartite(') and formula.endswith(')'):
                 inner = formula[10:-1].strip()
                 set_var1, set_var2 = self._split_at_comma(inner)
@@ -232,6 +246,29 @@ class courcelle_MSO_to_NTA_Parser:
                     'set_var1': set_var1,
                     'set_var2': set_var2
                 }
+        elif formula.startswith('sub(') and formula.endswith(')'):
+             inner = formula[4:-1].strip()
+             set_var = inner
+             return {
+                  'type' : 'sub',
+                  'set_var' : set_var
+             }
+        elif formula.startswith('noEdge(') and formula.endswith(')'):
+             inner = formula[7:-1].strip()
+             set_var = inner
+             return {
+                  'type' : 'noEdge',
+                  'set_var' : set_var
+             }
+        
+        elif formula.startswith('noEdgeInv(') and formula.endswith(')'):
+             inner = formula[10:-1].strip()
+             set_var = inner
+             return {
+                  'type' : 'noEdgeInv',
+                  'set_var' : set_var
+             }
+            
         raise ValueError(f"Unrecognized formula: {formula}")
     
     def build_automaton(self, ast):
@@ -328,13 +365,34 @@ class courcelle_MSO_to_NTA_Parser:
             set_var2 = ast['set_var2']
             set_idx1 = self._require_bound(set_var1)
             set_idx2 = self._require_bound(set_var2)
-            return vert_partition(set_idx1, set_idx2, self.alphabet, self.twd, self.k)
+            return only_vert_2_partition(set_idx1, set_idx2, self.alphabet, self.twd, self.k)
+        elif ast['type'] == 'closure':
+            set_var = ast['set_var']
+            set_idx = self._require_bound(set_var)
+            return closure(set_idx, self.alphabet, self.twd, self.k)
+        
         elif ast['type'] == 'bipartite':
             set_var1 = ast['set_var1']
             set_var2 = ast['set_var2']
             set_idx1 = self._require_bound(set_var1)
             set_idx2 = self._require_bound(set_var2)
             return bipartite(set_idx1, set_idx2, self.alphabet, self.twd, self.k)
+        
+        elif ast['type'] == 'sub':
+            set_var = ast['set_var']
+            set_idx = self._require_bound(set_var)
+            return sub(set_idx, self.alphabet, self.twd, self.k)
+        
+        elif ast['type'] == 'noEdge':
+            set_var = ast['set_var']
+            set_idx = self._require_bound(set_var)
+            return noEdge(set_idx, self.alphabet, self.twd, self.k)
+        
+        elif ast['type'] == 'noEdgeInv':
+            set_var = ast['set_var']
+            set_idx = self._require_bound(set_var)
+            return noEdgeInv(set_idx, self.alphabet, self.twd, self.k)
+             
 if __name__ == "__main__":
    
     treewidth = 2

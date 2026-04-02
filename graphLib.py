@@ -66,6 +66,8 @@ class Graph:
                 if u != w and {u, w} not in self.edges:
                     self.edges.append(set([u,w]))
 
+
+
 def minimal_degree_ordering(g):
     ordering = []
     #print("g Vertices: " + str(g.vertices))
