@@ -12,16 +12,18 @@ Courcelles Theorem in der Praxis: Entscheidung von MSOL Grapheigenschaften durch
 			-rooted Bäume
 		- Baumzerlegungen & Baumweite
 			-Bodlaenders Algorithmus
-			-rich tree decompositions
+			-rich tree decompositions (erweiterte Baumzerlegung)
 			- Baumweite
 		- (Cliquenweite)?
 	+ Automatentheorie
 		- (Nicht-)Deterministische endliche Automaten
 		- Determinisierung, Komplement, Vereinigung, Schnitt (Potenzmengen- und Kreuzproduktkonstruktion), Projektion
-		- Baumautomaten
-	+ Logik 
+		- Baumautomaten (Unterschiede zu NFA/DFA? Details ausführen)
+	+ Logik (Syntax und Semantik) Ausdrucksstärke was geht in welcher Logik (nicht)
 		- Logik erster Stufe
 		- Monadische Logik zweiter Stufe
+		- Ausdrucksstärke
+		- Minorentheorem
 3. Courcelles Theorem
 	- Fixed Parameter Tractability
 	- MSO auf endlichen Wörtern
@@ -34,7 +36,12 @@ Courcelles Theorem in der Praxis: Entscheidung von MSOL Grapheigenschaften durch
 	- Precomputed Automata
 
 4. Implementierung
+	- Tool Anleitung
+	- Bibliotheken
+	- Interessante Aspekte zu Implementierung von Algorithmen
+	- MONA Tool
 
 5. Evaluation
+	- Korrektheitstests
 	- Zusammenfassung
 	- Ausblick
