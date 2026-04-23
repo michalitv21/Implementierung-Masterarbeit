@@ -8,6 +8,8 @@ import traceback
 from graphLib import Graph, Vertex, minimal_degree_ordering, permutationToTreeDecomposition, tree_to_rooted_tree, minimize_tree_decomposition, make_rich_tree_decomposition, make_binary_tree
 from treeDecomp import TreeDecomposition, RootedTree, Node, RichTreeDecomposition
 from graph_loader import load_graph_from_adjacency_list, load_graph_from_edge_list
+from courcelleMSOtoNTA import courcelle_MSO_to_NTA_Parser
+from StringCase.utils import gen_courcelle_alphabet
 
 class GraphGUI:
     def __init__(self, root):
@@ -229,6 +231,32 @@ class GraphGUI:
 
         self.pipeline_output = ctk.CTkTextbox(pipeline_frame, width=400, height=350, font=ctk.CTkFont(family="Consolas", size=10))
         self.pipeline_output.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        
+        # Formula / Automaton Tab
+        formula_frame = ctk.CTkFrame(viz_frame, corner_radius=15)
+        formula_frame.grid(row=1, column=2, sticky="nsew", padx=(10, 0))
+        formula_frame.columnconfigure(0, weight=1)
+        formula_frame.rowconfigure(3, weight=1)
+
+        ctk.CTkLabel(formula_frame, text="MSO Formula → Automaton", font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, sticky="w", padx=15, pady=(15, 5))
+
+        # Formula input
+        formula_input_frame = ctk.CTkFrame(formula_frame, fg_color="transparent")
+        formula_input_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 5))
+        formula_input_frame.columnconfigure(0, weight=1)
+
+        self.formula_entry = ctk.CTkEntry(formula_input_frame, placeholder_text="e.g. ∃X(∃Y(and(bipartite(X,Y),biVert(X,Y))))")
+        self.formula_entry.grid(row=0, column=0, sticky="ew", pady=3)
+
+        formula_btn_frame = ctk.CTkFrame(formula_frame, fg_color="transparent")
+        formula_btn_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 5))
+        ctk.CTkButton(formula_btn_frame, text="Build Automaton", command=self.build_automaton_from_formula, width=130, fg_color="#2e7d32", hover_color="#1b5e20").pack(side="left", padx=3)
+        ctk.CTkButton(formula_btn_frame, text="Run on FHR Tree", command=self.run_automaton_on_fhr, width=130, fg_color="#1565c0", hover_color="#0d47a1").pack(side="left", padx=3)
+
+        self.formula_output = ctk.CTkTextbox(formula_frame, width=400, height=250, font=ctk.CTkFont(family="Consolas", size=10))
+        self.formula_output.grid(row=3, column=0, sticky="nsew", padx=15, pady=(0, 15))
+
+        self.formula_automaton = None
         
         # Right panel - Save/Load
         save_load_frame = ctk.CTkFrame(main_frame, corner_radius=15)
@@ -1311,6 +1339,50 @@ class GraphGUI:
         except Exception as e:
             print(f"Error saving graphs to file: {e}")
     
+    def build_automaton_from_formula(self):
+        formula = self.formula_entry.get().strip()
+        if not formula:
+            messagebox.showwarning("No Formula", "Please enter an MSO formula")
+            return
+        if not self.rich_tree:
+            messagebox.showwarning("No Rich Tree", "Please compute the Courcelle pipeline first (at least up to Step 3)")
+            return
+        try:
+            twd = self.rich_tree.treeWidth
+            # Count quantifiers to determine initial k
+            import re as _re
+            num_quantifiers = len(_re.findall(r'[∃∀]', formula))
+            base_alphabet = gen_courcelle_alphabet(twd, 0)
+            parser = courcelle_MSO_to_NTA_Parser(base_alphabet, twd, num_quantifiers)
+            ast = parser.build_ast(formula)
+            self.formula_automaton = parser.build_automaton(ast)
+            self.formula_output.delete("1.0", "end")
+            self.formula_output.insert("end", f"[Formula] {formula}\n")
+            self.formula_output.insert("end", f"[Treewidth] {twd}\n")
+            self.formula_output.insert("end", f"[States] {len(self.formula_automaton.states)}\n")
+            self.formula_output.insert("end", f"[Final States] {len(self.formula_automaton.final_states)}\n")
+            self.formula_output.insert("end", "Automaton built successfully.\n")
+        except Exception as e:
+            self.formula_output.delete("1.0", "end")
+            self.formula_output.insert("end", f"[Error] {str(e)}\n")
+            self.formula_output.insert("end", traceback.format_exc())
+
+    def run_automaton_on_fhr(self):
+        if not self.formula_automaton:
+            messagebox.showwarning("No Automaton", "Please build an automaton first")
+            return
+        if not self.fhr_tree:
+            messagebox.showwarning("No FHR Tree", "Please compute the FHR tree first (Step 4)")
+            return
+        try:
+            result = self.formula_automaton.nta_run(self.fhr_tree)
+            self.formula_output.insert("end", f"\n[Run Result] {'ACCEPTED' if result else 'REJECTED'}\n")
+            self.formula_output.see("end")
+        except Exception as e:
+            self.formula_output.insert("end", f"\n[Run Error] {str(e)}\n")
+            self.formula_output.insert("end", traceback.format_exc())
+            self.formula_output.see("end")
+
     def on_closing(self):
         """Handle window closing - save graphs before exit"""
         self.save_graphs_to_file()

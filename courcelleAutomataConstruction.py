@@ -298,15 +298,15 @@ def bipartite(i, j, alphabet, twd, k):
             char: {
                 tup1: {
                     tup2:
-                        "Err" if tup1 == "Err" or tup2 == "Err" or tup1[0].intersection(tup2[1]) != frozenset() else
+                        "Err" if tup1 == "Err" or tup2 == "Err" or tup1[0].intersection(tup1[1]) != frozenset() or tup2[0].intersection(tup2[1]) != frozenset() else
                         # tup1 False, tup2 False:
-                        (tup1[0].union(tup2[1]), tup1[1].union(tup2[0]), False) if not tup1[2] and not tup2[2] and (tup1[0] == tup2[1] or tup1[1] == tup2[0]) else
+                        (tup1[0].union(tup2[1]), tup1[1].union(tup2[0]), False) if not tup1[2] and not tup2[2] and (tup1[0].intersection(tup2[1]) != frozenset() or tup1[1].intersection(tup2[0]) != frozenset()) else
                         (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]), False) if not tup1[2] and not tup2[2] else
                         # tup1 True, tup2 False:
-                        (tup1[0].union(tup2[1]), tup1[1].union(tup2[0]), True) if tup1[2] and not tup2[2] and (tup1[0] == tup2[1] or tup1[1] == tup2[0]) else
+                        (tup1[0].union(tup2[1]), tup1[1].union(tup2[0]), True) if tup1[2] and not tup2[2] and (tup1[0].intersection(tup2[1]) != frozenset() or tup1[1].intersection(tup2[0]) != frozenset()) else
                         (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]), True) if tup1[2] and not tup2[2] else
                         # tup1 False, tup2 True:
-                        (tup1[1].union(tup2[0]), tup1[0].union(tup2[1]), True) if not tup1[2] and tup2[2] and (tup1[0] == tup2[1] or  tup1[1] == tup2[0]) else
+                        (tup1[1].union(tup2[0]), tup1[0].union(tup2[1]), True) if not tup1[2] and tup2[2] and (tup1[0].intersection(tup2[1]) != frozenset() or  tup1[1].intersection(tup2[0]) != frozenset()) else
                         (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]), True) if not tup1[2] and tup2[2] else
                         # tup1 True, tup2 True:
                         (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]), True)

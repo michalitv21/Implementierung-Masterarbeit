@@ -72,7 +72,7 @@ def minimal_degree_ordering(g):
     ordering = []
     #print("g Vertices: " + str(g.vertices))
     h = Graph(g.vertices.copy(), [e.copy()for e in g.edges])
-    for i in range(1,len(h.vertices)):
+    for i in range(len(h.vertices)):
         degrees = h.get_degree_dict()
         min_deg_vert = min(degrees, key=degrees.get)
         #print("Min degree: " + min_deg_vert.label)
