@@ -144,6 +144,61 @@ def in2(i, j, alphabet, twd, k):
         }
     )
 
+def inc(i,j,l, alphabet, twd, k):
+    input_symbols = gen_courcelle_alphabet(treewidth=twd, k=k)
+    symbols_twd = symbols[:twd + 1]
+    aut_states = {frozenset(s) for s in powerset(symbols_twd) if len(s) <= 2} | {"Err","null"}
+    return TreeAutomaton(
+        states=aut_states,
+        input_symbols=input_symbols,
+        final_states={frozenset()},
+        transitions={
+            char: frozenset([char[0][0],char[0][1]]) if char[i] == 1 and char[j] == 0 and char[l] == 0  else "null"
+            for char in input_symbols.keys() if input_symbols[char] == 0
+        } | {
+            char: {
+                left: {
+                    right: left if right == "null" else right if left == "null" else "Err"
+                    for right in aut_states                
+                } for left in aut_states
+            } for char in input_symbols.keys() if input_symbols[char] == 2
+        } | {
+            char: {
+                s: s if char[i] == 0 and char[j] == 0 and char[l] == 0 else s - frozenset(char[0][-1]) if type(s) == frozenset and char[i] == 0 and char[j] == 1 and char[l] == 0 
+                else s - frozenset(char[0][-1]) if type(s) == frozenset and char[i] == 0 and char[j] == 0 and char[l] == 1
+                else "Err"
+                for s in aut_states
+            } for char in input_symbols.keys() if input_symbols[char] == 1
+        }
+    )
+
+
+def inc_old(i,j, alphabet, twd, k):
+    input_symbols = gen_courcelle_alphabet(treewidth=twd, k=k)
+    symbols_twd = symbols[:twd + 1]
+    aut_states = {frozenset(s) for s in powerset(symbols_twd) if len(s) <= 2} | {"Err","null"}
+    return TreeAutomaton(
+        states=aut_states,
+        input_symbols=input_symbols,
+        final_states={frozenset()},
+        transitions={
+            char: frozenset([char[0][0],char[0][1]]) if char[i] == 1 and char[j] == 0 else "null"
+            for char in input_symbols.keys() if input_symbols[char] == 0
+        } | {
+            char: {
+                left: {
+                    right: left if right == "null" else right if left == "null" else "Err"
+                    for right in aut_states                
+                } for left in aut_states
+            } for char in input_symbols.keys() if input_symbols[char] == 2
+        } | {
+            char: {
+                s: s if char[i] == 0 and char[j] == 0 else s - frozenset(char[0][-1]) if type(s) == frozenset and char[i] == 0 and char[j] == 1 else "Err"
+                for s in aut_states
+            } for char in input_symbols.keys() if input_symbols[char] == 1
+        }
+    )
+
 def edges(i, alphabet, twd, k):
     #print("Constructing singl automaton for position ", i)
     input_symbols = gen_courcelle_alphabet(treewidth=twd, k=k)
@@ -271,8 +326,109 @@ def closure(i, alphabet, twd, k):
         }
     )
 
-# States (inSet, notInset, OrderFix)
+
 def bipartite(i, j, alphabet, twd, k):
+    input_symbols = gen_courcelle_alphabet(treewidth=twd, k=k)
+    symbols_twd = symbols[:twd + 1]
+    #print("Symbols for treewidth ", twd, ": ", symbols_twd)
+    frozen_set = frozenset(symbols_twd)
+    subsets = powerset(frozen_set)
+    #print("Subsets of symbols: ", subsets)
+    tuples = []
+    for s1 in subsets:
+        for s2 in subsets:
+            tuples.append((s1, s2))
+    #print("Tuples: ", set(tuples))
+    aut_states = set(tuples)
+    return TreeAutomaton(
+        states=aut_states,
+        input_symbols=input_symbols,
+        final_states={(frozenset(), frozenset())},
+        transitions={
+            char: [(frozenset(char[0][0]), frozenset(char[0][1])),(frozenset(char[0][1]), frozenset(char[0][0]))]
+            for char in input_symbols.keys() if input_symbols[char] == 0
+        } | {
+            char: {
+                tup1: {
+                    tup2:
+                        "Err" if tup1 == "Err" or tup2 == "Err" or tup1[0].intersection(tup1[1]) != frozenset() or tup2[0].intersection(tup2[1]) != frozenset() else
+                        (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]))
+                    for tup2 in tuples             
+                    }               for tup1 in tuples
+            } for char in input_symbols.keys() if input_symbols[char] == 2
+        } | {
+            char: {
+                tup: 
+                    "Err" if tup == "Err" or tup[0].intersection(tup[1]) != frozenset() else
+                    # vert add to i set
+                    (tup[0].difference(frozenset(char[0][-1])), tup[1]) if char[i] == 1 and char[j] == 0 and char[0][-1] in tup[0] else
+                    # vert add to j set
+                    (tup[0], tup[1].difference(frozenset(char[0][-1]))) if char[i] == 0 and char[j] == 1 and char[0][-1] in tup[1] else
+                    "Err" # Error state
+                for tup in tuples
+            } for char in input_symbols.keys() if input_symbols[char] == 1
+        }
+    )
+
+
+# States (inSet, notInset, OrderFix)
+def bipartite_nondet(i, j, alphabet, twd, k):
+    input_symbols = gen_courcelle_alphabet(treewidth=twd, k=k)
+    symbols_twd = symbols[:twd + 1]
+    #print("Symbols for treewidth ", twd, ": ", symbols_twd)
+    frozen_set = frozenset(symbols_twd)
+    subsets = powerset(frozen_set)
+    #print("Subsets of symbols: ", subsets)
+    tuples = []
+    for b in [True, False]:
+        for s1 in subsets:
+            for s2 in subsets:
+                tuples.append((s1, s2, b))
+    #print("Tuples: ", set(tuples))
+    aut_states = set(tuples)
+    return TreeAutomaton(
+        states=aut_states,
+        input_symbols=input_symbols,
+        final_states={(frozenset(), frozenset(), True),(frozenset(), frozenset(), False)},
+        transitions={
+            char: [(frozenset(char[0][0]), frozenset(char[0][1]), False),(frozenset(char[0][1]), frozenset(char[0][0]), False)]
+            for char in input_symbols.keys() if input_symbols[char] == 0
+        } | {
+            char: {
+                tup1: {
+                    tup2:
+                        "Err" if tup1 == "Err" or tup2 == "Err" or tup1[0].intersection(tup1[1]) != frozenset() or tup2[0].intersection(tup2[1]) != frozenset() else
+                        # tup1 False, tup2 False:
+                        (tup1[0].union(tup2[1]), tup1[1].union(tup2[0]), False) if not tup1[2] and not tup2[2] and (tup1[0].intersection(tup2[1]) != frozenset() or tup1[1].intersection(tup2[0]) != frozenset()) else
+                        (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]), False) if not tup1[2] and not tup2[2] else
+                        # tup1 True, tup2 False:
+                        (tup1[0].union(tup2[1]), tup1[1].union(tup2[0]), True) if tup1[2] and not tup2[2] and (tup1[0].intersection(tup2[1]) != frozenset() or tup1[1].intersection(tup2[0]) != frozenset()) else
+                        (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]), True) if tup1[2] and not tup2[2] else
+                        # tup1 False, tup2 True:
+                        (tup1[1].union(tup2[0]), tup1[0].union(tup2[1]), True) if not tup1[2] and tup2[2] and (tup1[0].intersection(tup2[1]) != frozenset() or  tup1[1].intersection(tup2[0]) != frozenset()) else
+                        (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]), True) if not tup1[2] and tup2[2] else
+                        # tup1 True, tup2 True:
+                        (tup1[0].union(tup2[0]), tup1[1].union(tup2[1]), True)
+                    for tup2 in tuples             
+                    }               for tup1 in tuples
+            } for char in input_symbols.keys() if input_symbols[char] == 2
+        } | {
+            char: {
+                tup: 
+                    "Err" if tup == "Err" or tup[0].intersection(tup[1]) != frozenset() else
+                    # vert add to i set
+                    (tup[1].difference(frozenset(char[0][-1])), tup[0], True) if char[i] == 1 and char[j] == 0 and char[0][-1] in tup[1] and not tup[2] else
+                    (tup[0].difference(frozenset(char[0][-1])), tup[1], True) if char[i] == 1 and char[j] == 0 and char[0][-1] in tup[0] else
+                    # vert add to j set
+                    (tup[1], tup[0].difference(frozenset(char[0][-1])), True) if char[i] == 0 and char[j] == 1 and char[0][-1] in tup[0] and not tup[2] else
+                    (tup[0], tup[1].difference(frozenset(char[0][-1])), True) if char[i] == 0 and char[j] == 1 else
+                    "Err" # Error state
+                for tup in tuples
+            } for char in input_symbols.keys() if input_symbols[char] == 1
+        }
+    )
+
+def bipartiteBroken(i, j, alphabet, twd, k):
     input_symbols = gen_courcelle_alphabet(treewidth=twd, k=k)
     symbols_twd = symbols[:twd + 1]
     #print("Symbols for treewidth ", twd, ": ", symbols_twd)
@@ -289,10 +445,9 @@ def bipartite(i, j, alphabet, twd, k):
     return TreeAutomaton(
         states=aut_states,
         input_symbols=input_symbols,
-        final_states={(frozenset(), frozenset(), True)},
+        final_states={(frozenset(), frozenset(), True),(frozenset(), frozenset(), False)},
         transitions={
-            char: (frozenset(char[0][0]), frozenset(char[0][1]), False) if char[0][0] < char[0][1] else 
-                  (frozenset(char[0][1]), frozenset(char[0][0]), False)
+            char: (frozenset(char[0][0]), frozenset(char[0][1]), False)
             for char in input_symbols.keys() if input_symbols[char] == 0
         } | {
             char: {
@@ -447,6 +602,37 @@ def noEdgeInv(i, alphabet, twd, k):
             } for char in input_symbols.keys() if input_symbols[char] == 1
         }
     )
+
+def evenVertices(i, alphabet, twd, k):
+    #print("Constructing singl automaton for position ", i)
+    input_symbols = gen_courcelle_alphabet(treewidth=twd, k=k)
+    return TreeAutomaton(
+        states={"s0", "s1"},
+        input_symbols=alphabet,
+        final_states={"s0"},
+        transitions={
+            char: "s1" if char[i] == 1 and char[0].startswith("miv") else "s0"
+            for char in input_symbols.keys() if input_symbols[char] == 0
+        } | {
+            char: {
+                "s0": {
+                    "s0": "s0",
+                    "s1": "s1",
+                },
+                "s1": {
+                    "s0": "s1",
+                    "s1": "s0",
+                }
+            }
+            for char in input_symbols.keys() if input_symbols[char] == 2
+        } | {
+            char: {
+                "s0": "s1" if char[i] == 1 and char[0].startswith("miv") else "s0",
+                "s1": "s0" if char[i] == 1 and char[0].startswith("miv") else "s1",
+            } for char in input_symbols.keys() if input_symbols[char] == 1
+        }
+    )
+
 
 if __name__ == "__main__":
     bipartite(1, 2, gen_courcelle_alphabet(2, 3), 2, 3)

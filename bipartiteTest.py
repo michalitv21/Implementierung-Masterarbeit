@@ -47,19 +47,23 @@ if __name__ == "__main__":
     #file_path1 = "list_293_graphs.lst"
     #file_path2 = "list_402_graphs.lst"
     
-    file_path1 = "list_887_graphs.lst"
-    file_path2 = "list_1589_graphs.lst"
+    #file_path1 = "list_887_graphs.lst"
+    #file_path2 = "list_1589_graphs.lst"
     
+    # twd <= 5
+    file_path1 = "list_1598_graphs.lst"
+    file_path2 = "list_2000_graphs.lst"
+
     graphs1 = load_graphs_from_file(file_path1)
     graphs2 = load_graphs_from_file(file_path2)
     
     #formula = "∃X(∃Y(and(and(and(vertices(X),singleton(X)),vertices(Y)),subset(X,Y))))"
-    formula = "∃X(∃Y(bipartite(X,Y)))"
+    formula = "∃X(∃Y(and(bipartite(X,Y),and(evenVertices(X),evenVertices(Y)))))"
     #formula = "∃X(∃Y(and(and(biVert(X,Y),closure(X)),closure(Y))))"
     #formula = "∃X(∃Y(and(biVert(X,Y),and(and(sub(X),noEdgeInv(X)),and(sub(Y),noEdgeInv(Y))))))"
     #formula = "∃X(and(sub(X),noEdgeInv(X)))"
 
-    treewidth = 3
+    treewidth = 4
     #k = 2
     k = formula.count("∃") + formula.count("∀")
     print("k:", k)
@@ -73,6 +77,8 @@ if __name__ == "__main__":
     ast = parser.build_ast(formula)
     automaton = parser.build_automaton(ast)
 
+    print("Automaten states: ", len(automaton.states))
+
     res1 = []
     res2 = []
 
@@ -82,7 +88,7 @@ if __name__ == "__main__":
         graph_copy = Graph(graph.vertices.copy(), [e.copy() for e in graph.edges])
         ordering = minimal_degree_ordering(graph_copy)
         tree = permutationToTreeDecomposition(graph_copy, ordering)
-        treeDecomp = TreeDecomposition(tree.I, tree)
+        #treeDecomp = TreeDecomposition(tree.I, tree)
         rooted = tree_to_rooted_tree(tree, tree.I[graph.vertices[0]])
         decomp_treeWidth = treeWidth_from_rooted_tree(rooted)
         #print(f"Graph {i+1} treewidth: {decomp_treeWidth}")

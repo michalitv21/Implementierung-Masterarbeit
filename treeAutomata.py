@@ -29,6 +29,8 @@ class TreeAutomaton:
                     child_states_list = state_dict[node.children[0]]
                     possible_states = []
                     for child_state in child_states_list:
+                        if child_state is None or child_state not in self.transitions[node.label]:
+                            continue
                         result = self.transitions[node.label][child_state]
                         if isinstance(result, list):
                             possible_states.extend(result)
@@ -42,7 +44,11 @@ class TreeAutomaton:
                     child_states_list_1 = state_dict[node.children[1]]
                     possible_states = []
                     for child_state_0 in child_states_list_0:
+                        if child_state_0 is None or child_state_0 not in self.transitions[node.label]:
+                            continue
                         for child_state_1 in child_states_list_1:
+                            if child_state_1 is None or child_state_1 not in self.transitions[node.label][child_state_0]:
+                                continue
                             result = self.transitions[node.label][child_state_0][child_state_1]
                             if isinstance(result, list):
                                 possible_states.extend(result)
@@ -522,7 +528,7 @@ class TreeAutomaton:
                             for ns1 in states1:
                                 for ns2 in states2:
                                     combined_next.append((ns1, ns2))
-                            new_transitions[char][(s1, s2)][(t1, t2)] = combined_next if len(combined_next) > 1 else combined_next[0]
+                            new_transitions[char][(s1, s2)][(t1, t2)] = combined_next if len(combined_next) > 1 else (combined_next[0] if combined_next else None)
                         else:
                             new_transitions[char][(s1, s2)][(t1, t2)] = (next_s1, next_s2)
         #print("New Transitions: ",new_transitions)
@@ -617,7 +623,7 @@ class TreeAutomaton:
                             for ns1 in states1:
                                 for ns2 in states2:
                                     combined_next.append((ns1, ns2))
-                            new_transitions[char][(s1, s2)][(t1, t2)] = combined_next if len(combined_next) > 1 else combined_next[0]
+                            new_transitions[char][(s1, s2)][(t1, t2)] = combined_next if len(combined_next) > 1 else (combined_next[0] if combined_next else None)
                         else:
                             new_transitions[char][(s1, s2)][(t1, t2)] = (next_s1, next_s2)
         #print(new_transitions)

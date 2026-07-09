@@ -298,7 +298,7 @@ def minimize_tree_decomposition(tree:RootedTree):
 """
 def minimize_tree_decomposition(tree: RootedTree):
     # Remove child bags that are subsets of their parent by bypassing them.
-
+    # Create deep copy of the tree to avoid modifying the original tree.
     def clone_subtree(node):
         cloned = Node(node.label, node.id, [])
         for child in node.children:

@@ -156,107 +156,113 @@ class GraphGUI:
         self.custom_order_entry = ctk.CTkEntry(control_frame, width=300, placeholder_text="v1, v2, v3, ...")
         self.custom_order_entry.grid(row=15, column=0, columnspan=4, padx=20, pady=(0, 20))
         
-        # Right panel - Visualizations (column 1-2 for tree decomposition and rooted tree)
-        viz_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        viz_frame.grid(row=0, column=1, columnspan=2, rowspan=2, sticky="nsew", padx=(0, 15))
-        viz_frame.columnconfigure(0, weight=1)
-        viz_frame.columnconfigure(1, weight=1)
-        viz_frame.columnconfigure(2, weight=1)
-        viz_frame.rowconfigure(0, weight=1)
-        viz_frame.rowconfigure(1, weight=1)
-        
-        # Original graph canvas
-        graph_frame = ctk.CTkFrame(viz_frame, corner_radius=15)
-        graph_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+        # Right panel - Tab view
+        tabview = ctk.CTkTabview(main_frame, corner_radius=15)
+        tabview.grid(row=0, column=1, columnspan=2, rowspan=2, sticky="nsew", padx=(0, 15))
+        main_frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(2, weight=1)
+
+        tab1 = tabview.add("Graph & Decomposition")
+        tab2 = tabview.add("Rooted Tree & Pipeline")
+        tab3 = tabview.add("Formula & Automaton")
+
+        # ── Tab 1: Original Graph  +  Tree Decomposition ──────────────────────
+        tab1.columnconfigure(0, weight=1)
+        tab1.columnconfigure(1, weight=1)
+        tab1.rowconfigure(0, weight=1)
+
+        graph_frame = ctk.CTkFrame(tab1, corner_radius=15)
+        graph_frame.grid(row=0, column=0, sticky="nsew", padx=(5, 5), pady=5)
         graph_frame.columnconfigure(0, weight=1)
         graph_frame.rowconfigure(1, weight=1)
-        
+
         ctk.CTkLabel(graph_frame, text="Original Graph", font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, sticky="w", padx=15, pady=(15, 10))
-        
-        self.graph_canvas = ctk.CTkCanvas(graph_frame, bg="#1a1a1a", width=800, height=350, highlightthickness=0)
+
+        self.graph_canvas = ctk.CTkCanvas(graph_frame, bg="#1a1a1a", highlightthickness=0)
         self.graph_canvas.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
         self.graph_canvas.bind("<Button-1>", self.on_graph_click)
         self.graph_canvas.bind("<B1-Motion>", self.on_graph_drag)
         self.graph_canvas.bind("<ButtonRelease-1>", self.on_graph_release)
-        
-        # Tree decomposition canvas
-        tree_frame = ctk.CTkFrame(viz_frame, corner_radius=15)
-        tree_frame.grid(row=0, column=1, columnspan=2, sticky="nsew")
+
+        tree_frame = ctk.CTkFrame(tab1, corner_radius=15)
+        tree_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 5), pady=5)
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(1, weight=1)
-        
+
         tree_header_frame = ctk.CTkFrame(tree_frame, fg_color="transparent")
         tree_header_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 5))
         ctk.CTkLabel(tree_header_frame, text="Tree Decomposition", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left")
-        
-        # Root selection
+
         ctk.CTkLabel(tree_header_frame, text="Root:", font=ctk.CTkFont(size=11)).pack(side="left", padx=(20, 5))
         self.root_var = tk.StringVar(value="")
-        self.root_combo = ctk.CTkComboBox(tree_header_frame, variable=self.root_var, width=100, 
+        self.root_combo = ctk.CTkComboBox(tree_header_frame, variable=self.root_var, width=100,
                                           values=[], command=self.on_root_changed, font=ctk.CTkFont(size=10))
         self.root_combo.pack(side="left", padx=5)
         ctk.CTkButton(tree_header_frame, text="Rooted", command=self.convert_to_rooted_tree,
-                     width=70, fg_color="#1565c0", hover_color="#0d47a1").pack(side="left", padx=5)
+                      width=70, fg_color="#1565c0", hover_color="#0d47a1").pack(side="left", padx=5)
         ctk.CTkButton(tree_header_frame, text="Pipeline", command=self.compute_full_pipeline,
-                 width=80, fg_color="#c62828", hover_color="#ad1457").pack(side="left", padx=2)
-        
-        self.tree_canvas = ctk.CTkCanvas(tree_frame, bg="#1a1a1a", width=400, height=350, highlightthickness=0)
+                      width=80, fg_color="#c62828", hover_color="#ad1457").pack(side="left", padx=2)
+
+        self.tree_canvas = ctk.CTkCanvas(tree_frame, bg="#1a1a1a", highlightthickness=0)
         self.tree_canvas.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
         self.tree_canvas.bind("<Button-1>", self.on_tree_click)
         self.tree_canvas.bind("<B1-Motion>", self.on_tree_drag)
         self.tree_canvas.bind("<ButtonRelease-1>", self.on_tree_release)
-        
-        # Rooted tree canvas
-        rooted_frame = ctk.CTkFrame(viz_frame, corner_radius=15)
-        rooted_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
+
+        # ── Tab 2: Rooted Tree  +  Pipeline Output ────────────────────────────
+        tab2.columnconfigure(0, weight=1)
+        tab2.columnconfigure(1, weight=1)
+        tab2.rowconfigure(0, weight=1)
+
+        rooted_frame = ctk.CTkFrame(tab2, corner_radius=15)
+        rooted_frame.grid(row=0, column=0, sticky="nsew", padx=(5, 5), pady=5)
         rooted_frame.columnconfigure(0, weight=1)
         rooted_frame.rowconfigure(1, weight=1)
-        
+
         self.rooted_title_label = ctk.CTkLabel(rooted_frame, text="Rooted Tree", font=ctk.CTkFont(size=16, weight="bold"))
         self.rooted_title_label.grid(row=0, column=0, sticky="w", padx=15, pady=(15, 10))
-        
-        self.rooted_canvas = ctk.CTkCanvas(rooted_frame, bg="#1a1a1a", width=400, height=350, highlightthickness=0)
+
+        self.rooted_canvas = ctk.CTkCanvas(rooted_frame, bg="#1a1a1a", highlightthickness=0)
         self.rooted_canvas.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
         self.rooted_canvas.bind("<Button-1>", self.on_rooted_click)
         self.rooted_canvas.bind("<B1-Motion>", self.on_rooted_drag)
         self.rooted_canvas.bind("<ButtonRelease-1>", self.on_rooted_release)
-        
-        # Pipeline output panel
-        pipeline_frame = ctk.CTkFrame(viz_frame, corner_radius=15)
-        pipeline_frame.grid(row=1, column=1, sticky="nsew", padx=(10, 0))
+
+        pipeline_frame = ctk.CTkFrame(tab2, corner_radius=15)
+        pipeline_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 5), pady=5)
         pipeline_frame.columnconfigure(0, weight=1)
         pipeline_frame.rowconfigure(1, weight=1)
 
         ctk.CTkLabel(pipeline_frame, text="Courcelle Pipeline Output", font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, sticky="w", padx=15, pady=(15, 10))
 
-        self.pipeline_output = ctk.CTkTextbox(pipeline_frame, width=400, height=350, font=ctk.CTkFont(family="Consolas", size=10))
+        self.pipeline_output = ctk.CTkTextbox(pipeline_frame, font=ctk.CTkFont(family="Consolas", size=10))
         self.pipeline_output.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
-        
-        # Formula / Automaton Tab
-        formula_frame = ctk.CTkFrame(viz_frame, corner_radius=15)
-        formula_frame.grid(row=1, column=2, sticky="nsew", padx=(10, 0))
-        formula_frame.columnconfigure(0, weight=1)
-        formula_frame.rowconfigure(3, weight=1)
 
-        ctk.CTkLabel(formula_frame, text="MSO Formula → Automaton", font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, sticky="w", padx=15, pady=(15, 5))
+        # ── Tab 3: MSO Formula → Automaton ────────────────────────────────────
+        tab3.columnconfigure(0, weight=1)
+        tab3.rowconfigure(3, weight=1)
 
-        # Formula input
-        formula_input_frame = ctk.CTkFrame(formula_frame, fg_color="transparent")
+        ctk.CTkLabel(tab3, text="MSO Formula → Automaton", font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, sticky="w", padx=15, pady=(15, 5))
+
+        formula_input_frame = ctk.CTkFrame(tab3, fg_color="transparent")
         formula_input_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 5))
         formula_input_frame.columnconfigure(0, weight=1)
 
         self.formula_entry = ctk.CTkEntry(formula_input_frame, placeholder_text="e.g. ∃X(∃Y(and(bipartite(X,Y),biVert(X,Y))))")
         self.formula_entry.grid(row=0, column=0, sticky="ew", pady=3)
 
-        formula_btn_frame = ctk.CTkFrame(formula_frame, fg_color="transparent")
+        formula_btn_frame = ctk.CTkFrame(tab3, fg_color="transparent")
         formula_btn_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 5))
+        ctk.CTkButton(formula_btn_frame, text="∃", command=lambda: self.formula_entry.insert(tk.END, "∃"), width=36, fg_color="#4a148c", hover_color="#6a1b9a", font=ctk.CTkFont(size=14)).pack(side="left", padx=(0, 2))
+        ctk.CTkButton(formula_btn_frame, text="∀", command=lambda: self.formula_entry.insert(tk.END, "∀"), width=36, fg_color="#4a148c", hover_color="#6a1b9a", font=ctk.CTkFont(size=14)).pack(side="left", padx=(0, 8))
         ctk.CTkButton(formula_btn_frame, text="Build Automaton", command=self.build_automaton_from_formula, width=130, fg_color="#2e7d32", hover_color="#1b5e20").pack(side="left", padx=3)
         ctk.CTkButton(formula_btn_frame, text="Run on FHR Tree", command=self.run_automaton_on_fhr, width=130, fg_color="#1565c0", hover_color="#0d47a1").pack(side="left", padx=3)
 
-        self.formula_output = ctk.CTkTextbox(formula_frame, width=400, height=250, font=ctk.CTkFont(family="Consolas", size=10))
+        self.formula_output = ctk.CTkTextbox(tab3, font=ctk.CTkFont(family="Consolas", size=10))
         self.formula_output.grid(row=3, column=0, sticky="nsew", padx=15, pady=(0, 15))
 
         self.formula_automaton = None
+        self.formula_automaton_twd = None
         
         # Right panel - Save/Load
         save_load_frame = ctk.CTkFrame(main_frame, corner_radius=15)
@@ -300,6 +306,29 @@ class GraphGUI:
         # Initialize saved graphs display
         self.refresh_saved_graphs()
         
+    def _reset_pipeline(self):
+        """Invalidate all computed pipeline data when the graph changes."""
+        self.bag_positions.clear()
+        self.node_positions.clear()
+        self.tree_decomposition = None
+        self.rooted_tree = None
+        self.minimized_tree = None
+        self.rich_tree = None
+        self.rich_tree_mapping = None
+        self.fhr_tree = None
+        self.pipeline_graph = None
+        self.rooted_drag_node = None
+        self.rooted_view_tree = None
+        self.rooted_positions.clear()
+        self.rooted_nodes_by_key.clear()
+        self.root_bag = None
+        self.root_combo.configure(values=[])
+        self.root_var.set("")
+        self.tree_canvas.delete("all")
+        self.rooted_canvas.delete("all")
+        self.pipeline_output.delete("1.0", "end")
+        self.rooted_title_label.configure(text="Rooted Tree")
+
     def add_vertex(self):
         label = self.vertex_entry.get().strip()
         if not label:
@@ -311,6 +340,7 @@ class GraphGUI:
         
         self.vertices[label] = Vertex(label)
         self.vertex_entry.delete(0, tk.END)
+        self._reset_pipeline()
         self.update_lists()
         self.draw_graph()
         
@@ -336,6 +366,7 @@ class GraphGUI:
         self.edges.append(edge)
         self.edge_v1_entry.delete(0, tk.END)
         self.edge_v2_entry.delete(0, tk.END)
+        self._reset_pipeline()
         self.update_lists()
         self.draw_graph()
     
@@ -360,6 +391,7 @@ class GraphGUI:
             del self.vertex_positions[label]
         
         self.vertex_entry.delete(0, tk.END)
+        self._reset_pipeline()
         self.update_lists()
         self.draw_graph()
     
@@ -382,6 +414,7 @@ class GraphGUI:
         self.edges.remove(edge)
         self.edge_v1_entry.delete(0, tk.END)
         self.edge_v2_entry.delete(0, tk.END)
+        self._reset_pipeline()
         self.update_lists()
         self.draw_graph()
         
@@ -1356,6 +1389,7 @@ class GraphGUI:
             parser = courcelle_MSO_to_NTA_Parser(base_alphabet, twd, num_quantifiers)
             ast = parser.build_ast(formula)
             self.formula_automaton = parser.build_automaton(ast)
+            self.formula_automaton_twd = twd
             self.formula_output.delete("1.0", "end")
             self.formula_output.insert("end", f"[Formula] {formula}\n")
             self.formula_output.insert("end", f"[Treewidth] {twd}\n")
@@ -1373,6 +1407,15 @@ class GraphGUI:
             return
         if not self.fhr_tree:
             messagebox.showwarning("No FHR Tree", "Please compute the FHR tree first (Step 4)")
+            return
+        current_twd = self.rich_tree.treeWidth if self.rich_tree else None
+        if current_twd is not None and self.formula_automaton_twd is not None and current_twd != self.formula_automaton_twd:
+            messagebox.showwarning(
+                "Treewidth Mismatch",
+                f"Automaton was built for treewidth {self.formula_automaton_twd}, "
+                f"but the current graph has treewidth {current_twd}.\n"
+                "Please rebuild the automaton for the current graph."
+            )
             return
         try:
             result = self.formula_automaton.nta_run(self.fhr_tree)

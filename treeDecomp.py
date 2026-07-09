@@ -65,7 +65,7 @@ class TreeDecomposition:
         if remove in self.tree.I:
             del self.tree.I[remove.label]
 
-class Node():
+class Node:
     def __init__(self, label, id, children:list):
         self.label = label
         self.id = id
@@ -231,13 +231,31 @@ class RichTreeDecomposition:
             #print("No edges in node " + str(node.label) + ", creating empty term")
             pass
         else:
+            edges_with_sources = []
             for edge in node_edges:
-                #print("Creating atomic term for edge " + str(edge) + " in node " + str(node.label))
                 vert1, vert2 = edge
                 source1 = sources_dict[node][vert1]
                 source2 = sources_dict[node][vert2]
-                term_parts.append(source1 + source2)
+                edges_with_sources.append((source1, source2))
             #print("Term parts for node " + str(node.label) + ": " + str(term_parts))
+            # Greedy reorder: always pick next edge adjacent (sharing a source) to already-ordered edges
+            ordered = [edges_with_sources.pop(0)]
+            seen_sources = set(ordered[0])
+            while edges_with_sources:
+                found = False
+                for i, edge in enumerate(edges_with_sources):
+                    if edge[0] in seen_sources or edge[1] in seen_sources:
+                        ordered.append(edges_with_sources.pop(i))
+                        seen_sources.update(ordered[-1])
+                        found = True
+                        break
+                if not found:
+                    # No adjacent edge available; just take the next one
+                    ordered.append(edges_with_sources.pop(0))
+                    seen_sources.update(ordered[-1])
+
+            term_parts = [s1 + s2 for s1, s2 in ordered]
+
             current_tree = term_parts[0]
             node_list.append(Node(current_tree, 0, []))
             for part in term_parts[1:]:
@@ -245,33 +263,19 @@ class RichTreeDecomposition:
                 current_tree = Node("//", 0, [node_list[-1], part_node])
                 node_list.append(part_node)
                 node_list.append(current_tree)
-            #print("Current tree for node " + str(node.label) + ": " + str(current_tree))
-            #print("Node list for node " + str(node.label) + ": " + str(node_list))
         return node_list
 
     def merge_terms(self, node, mapping, sources_dict, FHR_nodes_dict):
-        #print("")
         new_nodes = []
-        child_parent_subtrees = []
         # Child must already have an atomic term, parent is empty
         node_term = self.create_atomic_term(node, mapping, sources_dict)
         new_nodes.extend(node_term)
         parent_root = node_term[-1] if node_term else None
 
-        def clone_subtree(root):
-            # Clone so each child gets its own copy of parent atomic subtree
-            if root is None:
-                return None
-            cloned_children = [clone_subtree(c) for c in root.children]
-            cloned = Node(root.label, root.id, cloned_children)
-            new_nodes.append(cloned)
-            return cloned
-
-        # Now we need to merge the child term with the parent term by concatenating with "//"
-        # and forgetting the sources of the child bag nodes which are not in the parent bag
-        #print("Node children: " + str(node.children))
+        # Collect each child's processed term (with source-forgetting applied).
+        # Do NOT clone the parent's atomic term per child – that would duplicate edges.
+        processed_children = []
         for child in node.children:
-            #print("Iterating child " + str(child.label))
             child_term = FHR_nodes_dict.get(child)
             if child_term is None:
                 # Fallback for unexpected traversal orders.
@@ -279,44 +283,35 @@ class RichTreeDecomposition:
                 FHR_nodes_dict[child] = child_term
                 new_nodes.extend(child_term)
 
-            #print("Child term for child " + str(child.label) + ": " + str(child_term))
-            # Find Vertex which is in child bag but not in parent bag
-            #print("-----------Child vertices: " + str(child.label.vertices))
-            #print("-----------Parent vertices: " + str(node.label.vertices))
             if not child_term:
                 continue
 
             current_child_term = child_term[-1]
 
-            # Child vertex not in parent vertex:
+            # Forget all sources that belong to the child bag but not the parent bag.
             child_only_vertices = [vert for vert in child.label.vertices if vert not in node.label.vertices]
-            #print("Child only vertices: " + str(child_only_vertices))
             sources_to_forget = [sources_dict[child][vert] for vert in child_only_vertices]
-            #print("Sources of child only vertices: " + str(sources_to_forget))
-
-            # Forget all sources that disappear from child to parent
             for source in sources_to_forget:
                 forget_node = Node("miv_" + source, 1, [current_child_term])
                 new_nodes.append(forget_node)
-                #print("Forget node for node " + str(node.label) + ": " + str(forget_node))
                 current_child_term = forget_node
 
+            processed_children.append(current_child_term)
+
+        # Combine all processed children into one term with //.
+        if processed_children:
+            combined_children = processed_children[0]
+            for subtree in processed_children[1:]:
+                combined_children = Node("//", 0, [combined_children, subtree])
+                new_nodes.append(combined_children)
+
+            # Attach the parent's own atomic term (once) if it has edges.
             if parent_root is not None:
-                parent_copy = clone_subtree(parent_root)
-                subtree = Node("//", 0, [parent_copy, current_child_term])
-                new_nodes.append(subtree)
+                result = Node("//", 0, [parent_root, combined_children])
+                new_nodes.append(result)
+                FHR_nodes_dict[node] = [result]
             else:
-                subtree = current_child_term
-
-            child_parent_subtrees.append(subtree)
-
-        # Final merge of all child-parent subtrees with //
-        if child_parent_subtrees:
-            current_tree = child_parent_subtrees[0]
-            for subtree in child_parent_subtrees[1:]:
-                current_tree = Node("//", 0, [current_tree, subtree])
-                new_nodes.append(current_tree)
-            FHR_nodes_dict[node] = [current_tree]
+                FHR_nodes_dict[node] = [combined_children]
         elif parent_root is not None:
             FHR_nodes_dict[node] = [parent_root]
         else:
@@ -326,7 +321,6 @@ class RichTreeDecomposition:
 
     def create_FHR_term(self):
         sources_dict = self.create_sources_dict()
-        parents_dict = self.rich_tree.parent_dict()
         #print("Parents dict: " + str(parents_dict))
         FHR_nodes_dict = {}
         FHR_nodes = []

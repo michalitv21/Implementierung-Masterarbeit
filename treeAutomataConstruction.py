@@ -151,10 +151,10 @@ def right(i, j, alphabet, k):
             char: 
             {
                 "r0": {
-                    "r0": "r2" if char[j] == 1 and char[i] == 0 else "r0" if char[j] == 0 and char[i] == 0 else "r1",
+                    "r0": "r2" if char[i] == 1 and char[j] == 0 else "r0" if char[i] == 0 and char[j] == 0 else "r1",
                     "r1": "r1",
                     "r2": "r3" if char[i] == 0 and char[j] == 1 else "r1",
-                    "r3": "r3" if char[j] == 0 and char[i] == 0 else "r1",
+                    "r3": "r3" if char[i] == 0 and char[j] == 0 else "r1",
                 },
                 "r1": {
                     "r0": "r1",
