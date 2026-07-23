@@ -5,6 +5,7 @@ import math
 import json
 import os
 import traceback
+import time
 from graphLib import Graph, Vertex, minimal_degree_ordering, permutationToTreeDecomposition, tree_to_rooted_tree, minimize_tree_decomposition, make_rich_tree_decomposition, make_binary_tree
 from treeDecomp import TreeDecomposition, RootedTree, Node, RichTreeDecomposition
 from graph_loader import load_graph_from_adjacency_list, load_graph_from_edge_list
@@ -14,7 +15,7 @@ from StringCase.utils import gen_courcelle_alphabet
 class GraphGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Tree Decomposition Visualizer")
+        self.root.title("Courcelles Theorem applied")
         self.root.geometry("1400x800")
         
         # Set appearance mode and color theme
@@ -240,26 +241,83 @@ class GraphGUI:
 
         # ── Tab 3: MSO Formula → Automaton ────────────────────────────────────
         tab3.columnconfigure(0, weight=1)
-        tab3.rowconfigure(3, weight=1)
+        tab3.rowconfigure(5, weight=1)
 
         ctk.CTkLabel(tab3, text="MSO Formula → Automaton", font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, sticky="w", padx=15, pady=(15, 5))
 
+        # Info section with available formulas and examples
+        info_frame = ctk.CTkFrame(tab3, corner_radius=10, fg_color="#1e1e1e")
+        info_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 10))
+        info_frame.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(info_frame, text="Verfügbare Formeln und Beispiele:", font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
+
+        info_text = """
+Variablen erster Ordnung: a,b,c,...
+Variablen zweiter Ordnung: X,Y,Z,...
+                
+Atomare Formeln:
+• not(φ)  • and(φ,ψ)  • or(φ,ψ)  • ->(φ,ψ)  • <->(φ,ψ)
+• singleton(X)  • in1(X,Y)  • in2(X,Y)  • subset(X,Y)
+• vertices(X)  • edges(X)  • bipartite(X,Y)  • evenVertices(X)
+• edg(X,Y) (ungerichtete Kante)  • =(X,Y)
+
+Beispiele aus Laufzeittests:
+
+∃X(∃Y(bipartite(X,Y)))
+   → Graph ist bipartit mit Partitionen X und Y
+
+not(∃X(∃Y(bipartite(X,Y))))
+    → Graph ist nicht bipartit
+
+∀X(∃Y(bipartite(X,Y)))
+    Jede Partition X hat eine Partition Y, 
+    sodass der Graph bipartit ist (Testformel, nicht sinnvoll)
+
+∃X(∃Y(and(bipartite(X,Y),and(evenVertices(X),evenVertices(Y)))))
+    → Graph ist bipartite und die Partitionen X und Y haben gerade Knotenanzahl
+
+∃X(∃Y(edg(X,Y)))
+    → Es existiert eine ungerichtete Kante zwischen zwei Knotenmengen X und Y
+
+∃X(∃Y(and(edg(X,Y),=(X,Y))))
+    → Es existiert eine ungerichtete Kante zwischen zwei Knotenmengen X und Y und X ist gleich Y
+    (Testformel, nicht sinnvoll)
+
+∃a(∃Y(edg(a,Y)))
+    → Es existiert eine ungerichtete Kante zwischen dem Knoten a und der Knotemenge Y
+
+∃a(∃b(edg(a,b)))
+    → Es existieren zwei Knoten mit einer Kante dazwischen
+"""
+
+        self.formula_info = ctk.CTkTextbox(info_frame, width=600, height=130, font=ctk.CTkFont(family="Consolas", size=9))
+        self.formula_info.insert("1.0", info_text)
+        self.formula_info.configure(state="disabled")
+        self.formula_info.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+
         formula_input_frame = ctk.CTkFrame(tab3, fg_color="transparent")
-        formula_input_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 5))
+        formula_input_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 5))
         formula_input_frame.columnconfigure(0, weight=1)
 
-        self.formula_entry = ctk.CTkEntry(formula_input_frame, placeholder_text="e.g. ∃X(∃Y(and(bipartite(X,Y),biVert(X,Y))))")
+        self.formula_entry = ctk.CTkEntry(formula_input_frame, placeholder_text="e.g. ∃X(∃Y(and(bipartite(X,Y),evenVertices(X))))")
         self.formula_entry.grid(row=0, column=0, sticky="ew", pady=3)
 
+        twd_frame = ctk.CTkFrame(tab3, fg_color="transparent")
+        twd_frame.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 3))
+        ctk.CTkLabel(twd_frame, text="Baumweite (manuell, falls kein Graph geladen):", font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 8))
+        self.manual_twd_entry = ctk.CTkEntry(twd_frame, placeholder_text="z.B. 2", width=80)
+        self.manual_twd_entry.pack(side="left")
+
         formula_btn_frame = ctk.CTkFrame(tab3, fg_color="transparent")
-        formula_btn_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 5))
+        formula_btn_frame.grid(row=4, column=0, sticky="ew", padx=15, pady=(0, 5))
         ctk.CTkButton(formula_btn_frame, text="∃", command=lambda: self.formula_entry.insert(tk.END, "∃"), width=36, fg_color="#4a148c", hover_color="#6a1b9a", font=ctk.CTkFont(size=14)).pack(side="left", padx=(0, 2))
         ctk.CTkButton(formula_btn_frame, text="∀", command=lambda: self.formula_entry.insert(tk.END, "∀"), width=36, fg_color="#4a148c", hover_color="#6a1b9a", font=ctk.CTkFont(size=14)).pack(side="left", padx=(0, 8))
         ctk.CTkButton(formula_btn_frame, text="Build Automaton", command=self.build_automaton_from_formula, width=130, fg_color="#2e7d32", hover_color="#1b5e20").pack(side="left", padx=3)
         ctk.CTkButton(formula_btn_frame, text="Run on FHR Tree", command=self.run_automaton_on_fhr, width=130, fg_color="#1565c0", hover_color="#0d47a1").pack(side="left", padx=3)
 
         self.formula_output = ctk.CTkTextbox(tab3, font=ctk.CTkFont(family="Consolas", size=10))
-        self.formula_output.grid(row=3, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        self.formula_output.grid(row=5, column=0, sticky="nsew", padx=15, pady=(0, 15))
 
         self.formula_automaton = None
         self.formula_automaton_twd = None
@@ -979,14 +1037,19 @@ class GraphGUI:
             if not self.compute_step_rooted_tree(show_message=False):
                 return False
         try:
+            print("DEBUG: Starting minimization of rooted tree with", len(self.rooted_tree.nodes), "nodes")
             self.minimized_tree = minimize_tree_decomposition(self.rooted_tree)
+            print("DEBUG: Minimized tree has", len(self.minimized_tree.nodes), "nodes")
             self.draw_rooted_tree(self.minimized_tree, "Step 2: Minimized Tree")
-            self._append_pipeline_output("STEP 2 MINIMIZED", "#Nodes: " + str(len(self.minimized_tree.nodes)) + "\n" + str(self.minimized_tree))
+            self._append_pipeline_output("STEP 2 MINIMIZED", "#Nodes (before): " + str(len(self.rooted_tree.nodes)) + "\n#Nodes (after): " + str(len(self.minimized_tree.nodes)) + "\n" + str(self.minimized_tree))
             if show_message:
                 messagebox.showinfo("Step 2", "Minimized rooted tree computed")
             return True
         except Exception as e:
+            error_msg = traceback.format_exc()
+            self._append_pipeline_output("STEP 2 ERROR", error_msg)
             messagebox.showerror("Error", f"Error in Step 2 (Minimization): {str(e)}")
+            print("ERROR:", error_msg)
             return False
 
     def compute_step_rich_mapping(self, show_message=True):
@@ -1378,23 +1441,42 @@ class GraphGUI:
             messagebox.showwarning("No Formula", "Please enter an MSO formula")
             return
         if not self.rich_tree:
-            messagebox.showwarning("No Rich Tree", "Please compute the Courcelle pipeline first (at least up to Step 3)")
-            return
-        try:
+            manual_twd_str = self.manual_twd_entry.get().strip()
+            if not manual_twd_str:
+                messagebox.showwarning("Keine Baumweite", "Kein Graph geladen. Bitte eine Baumweite manuell eingeben.")
+                return
+            try:
+                twd = int(manual_twd_str)
+                if twd < 1:
+                    raise ValueError
+            except ValueError:
+                messagebox.showwarning("Ungültige Baumweite", "Bitte eine positive ganze Zahl als Baumweite eingeben.")
+                return
+        else:
             twd = self.rich_tree.treeWidth
+        try:
             # Count quantifiers to determine initial k
             import re as _re
             num_quantifiers = len(_re.findall(r'[∃∀]', formula))
             base_alphabet = gen_courcelle_alphabet(twd, 0)
             parser = courcelle_MSO_to_NTA_Parser(base_alphabet, twd, num_quantifiers)
             ast = parser.build_ast(formula)
+            _t_start = time.perf_counter()
             self.formula_automaton = parser.build_automaton(ast)
+            _t_elapsed = time.perf_counter() - _t_start
             self.formula_automaton_twd = twd
+            _minutes = int(_t_elapsed // 60)
+            _seconds = _t_elapsed % 60
+            if _minutes > 0:
+                _time_str = f"{_minutes} min {_seconds:.2f} s"
+            else:
+                _time_str = f"{_seconds:.2f} s"
             self.formula_output.delete("1.0", "end")
             self.formula_output.insert("end", f"[Formula] {formula}\n")
             self.formula_output.insert("end", f"[Treewidth] {twd}\n")
             self.formula_output.insert("end", f"[States] {len(self.formula_automaton.states)}\n")
             self.formula_output.insert("end", f"[Final States] {len(self.formula_automaton.final_states)}\n")
+            self.formula_output.insert("end", f"[Build Time] {_time_str}\n")
             self.formula_output.insert("end", "Automaton built successfully.\n")
         except Exception as e:
             self.formula_output.delete("1.0", "end")
@@ -1409,12 +1491,12 @@ class GraphGUI:
             messagebox.showwarning("No FHR Tree", "Please compute the FHR tree first (Step 4)")
             return
         current_twd = self.rich_tree.treeWidth if self.rich_tree else None
-        if current_twd is not None and self.formula_automaton_twd is not None and current_twd != self.formula_automaton_twd:
+        if current_twd is not None and self.formula_automaton_twd is not None and current_twd > self.formula_automaton_twd:
             messagebox.showwarning(
                 "Treewidth Mismatch",
-                f"Automaton was built for treewidth {self.formula_automaton_twd}, "
-                f"but the current graph has treewidth {current_twd}.\n"
-                "Please rebuild the automaton for the current graph."
+                f"Automat wurde für Baumweite {self.formula_automaton_twd} gebaut, "
+                f"aber der aktuelle Graph hat Baumweite {current_twd}.\n"
+                "Bitte den Automaten für eine größere Baumweite neu bauen."
             )
             return
         try:

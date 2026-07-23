@@ -18,6 +18,14 @@ class courcelle_MSO_to_NTA_Parser:
             raise ValueError(f"Unbound variable: {var_name}")
         return self.bound_variables[var_name]
 
+    def create_temp_var(self):
+        temp_var_name = f"temp_{self.variable_counter}"
+        self.bound_variables[temp_var_name] = self.variable_counter
+        self.variable_types[temp_var_name] = 'second'  # Default type for temporary variables
+        self.variable_counter += 1
+        self.k += 1  # Increment k for the new variable
+        return temp_var_name
+
     def _project_last_coordinate(self, automaton):
         projected = automaton.project_courcelle(self.base_alphabet, self.twd, self.k, verbose=False)
         self.k -= 1
@@ -159,6 +167,22 @@ class courcelle_MSO_to_NTA_Parser:
                         'right': self.build_ast(left)
                     }
                 }
+        elif formula.startswith('=(') and formula.endswith(')'):
+            inner = formula[2:-1].strip()
+            left, right = self._split_at_comma(inner)
+            return {
+                'type': 'and',
+                'left': {
+                     'type': 'subset',
+                     'set1_var': left,
+                     'set2_var': right
+                },
+                'right': {
+                     'type': 'subset',
+                     'set1_var': right,
+                     'set2_var': left
+                }
+            }
         # Set operations
         elif formula.startswith('singleton(') and formula.endswith(')'):
                 inner = formula[10:-1].strip()
@@ -221,6 +245,25 @@ class courcelle_MSO_to_NTA_Parser:
                     'type': 'closure',
                     'set_var': set_var
                 }
+        elif formula.startswith('edg(') and formula.endswith(')'):
+                
+                inner = formula[4:-1].strip()
+                set_var1, set_var2 = self._split_at_comma(inner)
+                temp_var = self.create_temp_var()
+                return {
+                            'type': 'exists_second',
+                            'var': temp_var,
+                            'var_type': 'second',
+                            'subformula': {
+                                    'type': 'or',
+                                    'left': {'type': 'and', 
+                                             'left': {'type': 'in1', 'set_var': temp_var, 'elem_var': set_var1}, 
+                                             'right': {'type': 'in2', 'set_var': temp_var, 'elem_var': set_var2}},
+                                    'right': {'type': 'and', 
+                                              'left': {'type': 'in2', 'set_var': temp_var, 'elem_var': set_var1}, 
+                                              'right': {'type': 'in1', 'set_var': temp_var, 'elem_var': set_var2}}
+                                }
+                            }
         elif formula.startswith('bipartite(') and formula.endswith(')'):
                 inner = formula[10:-1].strip()
                 set_var1, set_var2 = self._split_at_comma(inner)
