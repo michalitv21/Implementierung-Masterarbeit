@@ -10,9 +10,8 @@ Alternativ kann man das Tool starten, indem die Datei courcelleGUI.py mit Python
 Es sollte die Python Version 3.14 verwendet werden.
 
 ## Benötigte Pakete
-Für die GUI werden die Python module:
+Für die GUI werden folgende Python module benötigt:
 
-tkinter Version 8.6
-customtkinter Version 6.0.0 
+    tkinter Version 8.6
+    customtkinter Version 6.0.0 
 
-benötigt.
