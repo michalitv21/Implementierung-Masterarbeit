@@ -1,5 +1,5 @@
 
-def treeWidth_from_rooted_tree(rooted_tree:RootedTree):
+def treeWidth_from_rooted_tree(rooted_tree):
     # Compute the tree width of a rooted tree decomposition
     max_bag_size = 0
     for node in rooted_tree.nodes:
@@ -39,7 +39,7 @@ class Tree:
 
 
 class TreeDecomposition:
-    def __init__(self, bags, tree:Tree):
+    def __init__(self, bags, tree):
         self.bags = bags
         self.tree = tree
 
@@ -75,10 +75,10 @@ class Node:
         return (str(self.label) + "(" + ", ".join([str(c) for c in self.children]) + ")")
         #label is Bag then we need the label of the bag
 
-    def add_child(self, child:Node):
+    def add_child(self, child):
         self.children.append(child)
     
-    def remove_child(self, child:Node):
+    def remove_child(self, child):
         self.children.remove(child)
 
     def is_leaf(self):
@@ -98,7 +98,7 @@ class Node:
         return None
 
 class RootedTree():
-    def __init__(self, root:Node, nodes):
+    def __init__(self, root, nodes):
         self.root = root
         self.nodes = nodes
         # Add contruction of tree with parent - children relation
@@ -108,18 +108,18 @@ class RootedTree():
     def __repr__(self):
         return str(self.root)
     
-    def add_node(self, node:Node):  
+    def add_node(self, node):  
         self.nodes.append(node)
 
-    def set_root(self, root:Node):
+    def set_root(self, root):
         self.root = root
     
-    def add_edge(self, parent:Node, child:Node):
+    def add_edge(self, parent, child):
         parent.add_child(child)
 
-    def build_subtree(tree:Tree, bag:Bag, visited:set):
+    def build_subtree(tree, bag, visited):
         visited.add(bag)
-        node = Node(bag,1, [])
+        node = Node(bag, 1, [])
         for edge in tree.F:
             if bag in edge:
                 other_bag = (edge - set([bag])).pop()
